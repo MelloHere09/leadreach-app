@@ -1,16 +1,13 @@
 // Manually grant someone access — for sales made outside the checkout flow
-// (friends, comps, support, direct payment). Creates the account if it
-// doesn't exist yet, then emails a "set your password" link (the same
-// flow a real Lemon Squeezy purchase will trigger later). If the email
-// already has an account, it just sends a normal password-reset link
-// instead of failing.
+// (friends, comps, support, direct payment). See lib/accountProvisioning.js
+// for what this actually does; the Lemon Squeezy webhook uses the same
+// function for real purchases.
 //
 // Usage:
 //   node scripts/create-account.js someone@email.com
 
 require('dotenv').config();
-const { createClient } = require('@supabase/supabase-js');
-const { supabaseAdmin } = require('../lib/supabaseAdmin');
+const { provisionAccount } = require('../lib/accountProvisioning');
 
 // Where the emailed link lands. Change this if the marketing site's
 // domain ever changes.
@@ -22,31 +19,14 @@ if (!email || !email.includes('@')) {
   process.exit(1);
 }
 
-const anon = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY);
-
 (async () => {
-  const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: RESET_PASSWORD_URL,
-  });
-
-  if (!error) {
-    console.log(`Account created for ${email} — invite email sent (id: ${data.user.id}).`);
-    return;
-  }
-
-  const alreadyExists = /already.*registered|already.*exists/i.test(error.message || '');
-  if (!alreadyExists) {
-    console.error('Could not create account:', error.message);
+  try {
+    const { created } = await provisionAccount(email, RESET_PASSWORD_URL);
+    console.log(created
+      ? `Account created for ${email} — invite email sent.`
+      : `${email} already had an account — password-reset link sent instead.`);
+  } catch (err) {
+    console.error(err.message);
     process.exit(1);
   }
-
-  console.log(`${email} already has an account — sending a password-reset link instead.`);
-  const { error: resetError } = await anon.auth.resetPasswordForEmail(email, {
-    redirectTo: RESET_PASSWORD_URL,
-  });
-  if (resetError) {
-    console.error('Could not send reset link:', resetError.message);
-    process.exit(1);
-  }
-  console.log(`Reset link sent to ${email}.`);
 })();

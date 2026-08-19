@@ -17,6 +17,7 @@ const { loadLeads, appendLeads } = require('./lib/leadsLog');
 const { estimateRates } = require('./lib/etaEstimator');
 const { leadsToCsv } = require('./lib/csvExport');
 const { requireAuth } = require('./lib/requireAuth');
+const { handleLemonSqueezyWebhook } = require('./lib/lemonSqueezyWebhook');
 
 const app = express();
 const upload = multer({
@@ -24,8 +25,16 @@ const upload = multer({
   limits: { fileSize: 3 * 1024 * 1024, files: 200 },
 });
 
-app.use(express.json());
+// The Lemon Squeezy webhook needs the raw request bytes to verify its
+// signature (see lib/lemonSqueezyWebhook.js) — this stashes them on every
+// request without changing how every other route reads req.body.
+app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Public — Lemon Squeezy's servers call this directly, there's no user
+// session, so it must NOT be behind requireAuth. Verifies its own
+// signature instead (see lib/lemonSqueezyWebhook.js).
+app.post('/webhooks/lemonsqueezy', handleLemonSqueezyWebhook);
 
 // Every /api/* route requires a valid Supabase session from here on — see
 // lib/requireAuth.js. It attaches req.userId, which every data-access call
