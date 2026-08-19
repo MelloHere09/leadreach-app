@@ -1,0 +1,20 @@
+{
+  "name": "leadreach-console",
+  "version": "0.1.0",
+  "description": "BYOK console: crawl store listings, enrich Instagram profiles via Apify, qualify by followers/activity, push into your own Airtable.",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.112.3",
+    "cheerio": "^1.0.0",
+    "dotenv": "^17.4.2",
+    "express": "^4.19.2",
+    "multer": "^2.2.0",
+    "undici": "^8.10.0"
+  }
+}
