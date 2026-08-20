@@ -18,6 +18,7 @@ const { estimateRates } = require('./lib/etaEstimator');
 const { leadsToCsv } = require('./lib/csvExport');
 const { requireAuth } = require('./lib/requireAuth');
 const { handleLemonSqueezyWebhook } = require('./lib/lemonSqueezyWebhook');
+const { handleGumroadPing } = require('./lib/gumroadWebhook');
 
 const app = express();
 const upload = multer({
@@ -35,6 +36,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 // session, so it must NOT be behind requireAuth. Verifies its own
 // signature instead (see lib/lemonSqueezyWebhook.js).
 app.post('/webhooks/lemonsqueezy', handleLemonSqueezyWebhook);
+
+// Public, same reasoning as the Lemon Squeezy route above. Gumroad's Ping
+// posts x-www-form-urlencoded (not JSON), so this route needs its own body
+// parser — it doesn't trust the payload itself, only uses it to trigger an
+// authenticated lookup against Gumroad's API (see lib/gumroadWebhook.js).
+app.post('/webhooks/gumroad', express.urlencoded({ extended: false }), handleGumroadPing);
 
 // Every /api/* route requires a valid Supabase session from here on — see
 // lib/requireAuth.js. It attaches req.userId, which every data-access call
